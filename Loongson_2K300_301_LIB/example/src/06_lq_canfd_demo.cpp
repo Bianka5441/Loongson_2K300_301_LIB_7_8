@@ -17,20 +17,32 @@
 
 // CANFD对象
 ls_canfd g_can;
-// 时间获取对象
-static lq_ntp g_ntp;
+
+// 获取当前时间字符串（格式： YYYY-MM-DD HH:mm:ss）
+static std::string get_time_str(void)
+{
+    // 获取时间对象
+    static lq_ntp g_ntp;
+    return g_ntp.get_local_time_str();
+}
 
 // CAN接收回调函数（在独立线程中运行）
 void CAN_RxCallback(const ls_canfd_frame_t &frame)
 {
     printf("[%s] 收到: CAN ID 0x%03X, 长度 %d, 数据: ", 
-           g_ntp.get_local_time_str().c_str(), frame.can_id, frame.len);
+           get_time_str().c_str(), frame.can_id, frame.len);
     for (int i = 0; i < frame.len; i++) {
         printf("%02X ", frame.data[i]);
     }
     printf("\n");
 }
 
+/********************************************************************************
+ * @brief   CANFD 测试程序.
+ * @param   none.
+ * @return  none.
+ * @note    使用独立线程模式，测试CANFD的收发帧功能.
+ ********************************************************************************/
 void lq_canfd_demo(void)
 {
     // 初始化CAN，使用独立线程模式，接收回调函数为CAN_RxCallback
@@ -45,11 +57,11 @@ void lq_canfd_demo(void)
     // 主循环
     int count = 0;
     while (1) {
-        printf("[%s] 主程序运行中... count = %d\n", g_ntp.get_local_time_str().c_str(), count++);
+        printf("[%s] 主程序运行中... count = %d\n", get_time_str().c_str(), count++);
         // 发送数据
         uint8_t tx_data[] = {0xDE, 0xAD, 0xBE, 0xEF, 0x11, 0x22, 0x33, 0x44};
         g_can.canfd_write_data(0x123, tx_data, sizeof(tx_data));
-        printf("[%s] 发送数据: CAN ID 0x123, 长度 %zu\n", g_ntp.get_local_time_str().c_str(), sizeof(tx_data));
+        printf("[%s] 发送数据: CAN ID 0x123, 长度 %zu\n", get_time_str().c_str(), sizeof(tx_data));
         sleep(2);
     }
     return;

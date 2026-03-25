@@ -31,6 +31,7 @@ lq_camera::lq_camera(uint16_t _width, uint16_t _height, uint16_t _fps, int _dev_
 lq_camera::~lq_camera()
 {
     this->close();
+    lq_log_info("摄像头资源已安全释放!");
 }
 
 /********************************************************************************
@@ -56,7 +57,7 @@ bool lq_camera::open(uint16_t _width, uint16_t _height, uint16_t _fps)
     this->cap = cv::VideoCapture(this->dev_id);
     if (!this->cap.isOpened())
     {
-        lq_log_error("Error open video stream");
+        lq_log_error("打开摄像头失败!");
         return false;
     }
     // 设置视频流编码器

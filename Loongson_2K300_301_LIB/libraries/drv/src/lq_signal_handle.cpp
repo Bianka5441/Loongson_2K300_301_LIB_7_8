@@ -1,5 +1,7 @@
 #include "lq_signal_handle.hpp"
 
+extern "C" {
+
 // 自定义退出处理函数指针
 static lq_empty_cb_t g_exit_cb = nullptr;
 
@@ -13,6 +15,7 @@ static lq_empty_cb_t g_exit_cb = nullptr;
 static void __sigint_handler(int sig)
 {
     (void)sig;
+    // 调用自定义退出处理函数
     if (g_exit_cb != nullptr) {
         g_exit_cb();
     }
@@ -35,6 +38,8 @@ static void __lq_auto_setup_signal(void)
     sa.sa_handler = __sigint_handler;
     sigemptyset(&sa.sa_mask);
     sigaction(SIGINT, &sa, NULL);
+}
+
 }
 
 /********************************************************************************

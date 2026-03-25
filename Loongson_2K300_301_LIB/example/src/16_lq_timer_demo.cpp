@@ -25,8 +25,14 @@ void my_timer_callback(void)
  ********************************************************************************/
 void lq_timer_demo(void)
 {
-    lq_timer timer;
+    static lq_timer timer;
     
+    // 调用退出回调函数，用于在程序结束时停止定时器
+    // 这里的 lambda 表达式捕获了 timer 的引用，以便在回调函数中停止定时器
+    // 这里也可以用一个无参无返回值的函数，只要在回调函数中停止定时器即可
+    // 如果这里不调用停止定时器的函数，程序结束时定时器可能还在运行，导致资源泄漏或其他问题
+    lq_signal_set_exit_cb([](){ timer.stop(); });
+
     timer.set_seconds_s(1, my_timer_callback);     // 设置定时器回调，1s执行一次
     // timer.set_seconds_ms(1000, my_timer_callback); // 设置定时器回调，1000ms执行一次
     while (1)

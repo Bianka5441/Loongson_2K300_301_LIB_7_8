@@ -14,7 +14,7 @@ lq_ntp::lq_ntp()
     // 获取网络时间
     uint32_t unix_time = 0;
     if (this->get_ntp_time(&(unix_time)) != 0) {
-        lq_log_error("获取网络时间失败，使用系统默认时间");
+        lq_log_warn("获取网络时间失败，使用系统默认时间");
         return;
     }
     // 自动 +8 小时 → 北京时间
@@ -248,6 +248,9 @@ std::string lq_ntp::get_local_second(uint8_t *_second)
  ********************************************************************************/
 int lq_ntp::get_ntp_time(uint32_t *_unix_time)
 {
+    if (_unix_time == nullptr) {
+        lq_log_error("Invalid pointer");
+    }
     uint8_t ntp_packet[48] = {0};   // NTP 数据包固定 48 字节
     // 创建 UDP 套接字
     int sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -255,6 +258,12 @@ int lq_ntp::get_ntp_time(uint32_t *_unix_time)
         lq_log_error("socket failed");
         return -1;
     }
+    // 超时设置
+    struct timeval tv{};
+    tv.tv_sec  = 1;
+    tv.tv_usec = 0;
+    setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
+    setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
     // 直接填入 IP 地址
     struct sockaddr_in server_addr;
     memset(&server_addr, 0, sizeof(server_addr));

@@ -11,7 +11,9 @@ set(CMAKE_C_COMPILER "${CMAKE_TOOLCHAIN_PATH}/bin/loongarch64-linux-gnu-gcc")
 set(CMAKE_CXX_COMPILER "${CMAKE_TOOLCHAIN_PATH}/bin/loongarch64-linux-gnu-g++")
 
 # 项目名称
-project(main)
+set(PROJECT_NAME "main")
+
+project(${PROJECT_NAME})
 
 # 指定所用的源文件路径(与 file(GLOB LIB ${XXX}) 功能相同，但可将所有参数保存到一个变量中)
 aux_source_directory(${PROJECT_SOURCE_DIR}/ SRC)
@@ -55,9 +57,9 @@ link_directories(
 )
 
 # 由源文件生成一个可执行程序
-add_executable(main ${SRC})
+add_executable(${PROJECT_NAME} ${SRC})
 
-target_include_directories(main PRIVATE
+target_include_directories(${PROJECT_NAME} PRIVATE
     ${PROJECT_SOURCE_DIR}/../libraries/drv/inc  # ncnn 头文件路径
     ${OPENCV_INCLUDE_DIRS}                      # OpenCV 头文件路径
     ${NCNN_INCLUDE_DIRS}                        # ncnn 头文件路径
@@ -65,7 +67,7 @@ target_include_directories(main PRIVATE
 )
 
 # 连接库
-target_link_libraries(main PUBLIC
+target_link_libraries(${PROJECT_NAME} PUBLIC
     pthread
     lqncnn
     lq_camera_ex
