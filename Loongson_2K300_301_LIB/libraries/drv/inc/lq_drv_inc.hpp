@@ -1,6 +1,7 @@
 #ifndef __LQ_DRV_INC_HPP
 #define __LQ_DRV_INC_HPP
 
+#include "lq_clock.hpp"
 #include "lq_camera.hpp"
 #include "lq_camera_ex.hpp"
 #include "lq_canfd.hpp"
