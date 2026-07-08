@@ -90,7 +90,7 @@ def save_config(cfg):
 class PidGui:
     def __init__(self, root):
         self.root = root
-        self.root.title("Loongson 7.8 Tuner")
+        self.root.title("Loongson 7.8 Binary Track Telemetry")
         self.cfg = load_config()
         self.board_ip = tk.StringVar(value=self.cfg.get("board_ip", "192.168.31.187"))
         self.control_port = int(self.cfg.get("control_port", 9090))
@@ -136,7 +136,7 @@ class PidGui:
         top.columnconfigure(1, weight=0)
         top.rowconfigure(0, weight=1)
 
-        self.image_label = ttk.Label(left, text="waiting for LQIM image on UDP 8080", anchor="center")
+        self.image_label = ttk.Label(left, text="waiting for binary track image on UDP 8080", anchor="center")
         self.image_label.grid(row=0, column=0, sticky="nsew")
         self.image_label.configure(background="#202020")
         left.columnconfigure(0, weight=1)

@@ -23,7 +23,12 @@ bool car_runtime_motor_enabled = false;
 int car_runtime_motor_init_duty = 1000;
 
 #ifdef LQ_HAVE_OPENCV
-constexpr const char* kTelemetryHostIp = "192.168.31.33";
+#ifndef LQ_TELEMETRY_HOST_IP
+#define LQ_TELEMETRY_HOST_IP "192.168.31.33"
+#endif
+
+constexpr const char* kTelemetryHostIp = LQ_TELEMETRY_HOST_IP;
+constexpr const char* kTelemetryImageMode = "binary_track";
 constexpr uint16_t kTelemetryImagePort = 8080;
 constexpr uint16_t kTelemetryStatusPort = 8083;
 constexpr int kTelemetryJpegQuality = 90;
@@ -85,13 +90,51 @@ void append_le32(std::vector<uint8_t>& data, uint32_t value)
     data.push_back(static_cast<uint8_t>((value >> 24) & 0xFF));
 }
 
+const char* road_type_name(RoadType_e road_type)
+{
+    switch (road_type)
+    {
+    case Normol:
+        return "normal";
+    case Straight:
+        return "straight";
+    case Cross:
+        return "cross";
+    case Ramp:
+        return "ramp";
+    case LeftCirque:
+        return "left_ring";
+    case RightCirque:
+        return "right_ring";
+    case Forkin:
+        return "fork_in";
+    case Forkout:
+        return "fork_out";
+    case Barn_out:
+        return "barn_out";
+    case Barn_in:
+        return "barn_in";
+    case Cross_ture:
+        return "cross_true";
+    default:
+        return "unknown";
+    }
+}
+
 void send_status_packet(uint32_t image_seq)
 {
-    char status[256];
+    char status[512];
     const int center_error = ImageStatus.Det_True - ImageStatus.MiddleLine;
     const int len = std::snprintf(status, sizeof(status),
                                   "status_image_seq=%u\n"
+                                  "image_mode=%s\n"
+                                  "road_type=%s\n"
                                   "err=%d\n"
+                                  "det_true=%d\n"
+                                  "middle_line=%u\n"
+                                  "tow_point=%d\n"
+                                  "off_line=%u\n"
+                                  "white_line=%u\n"
                                   "pid_l=%d\n"
                                   "pid_r=%d\n"
                                   "spd_l=%d\n"
@@ -100,7 +143,14 @@ void send_status_packet(uint32_t image_seq)
                                   "target_r=%d\n"
                                   "pwm_max=%d\n",
                                   image_seq,
+                                  kTelemetryImageMode,
+                                  road_type_name(ImageStatus.Road_type),
                                   center_error,
+                                  ImageStatus.Det_True,
+                                  ImageStatus.MiddleLine,
+                                  ImageStatus.TowPoint_True,
+                                  ImageStatus.OFFLine,
+                                  ImageStatus.WhiteLine,
                                   Speed_PID_OUT_l,
                                   Speed_PID_OUT_r,
                                   encoder_Left,
@@ -135,6 +185,19 @@ void mark_column(cv::Mat& image, int row, int col, const cv::Vec3b& color)
     }
 }
 
+void mark_row(cv::Mat& image, int row, const cv::Vec3b& color)
+{
+    if (row < 0 || row >= image.rows)
+    {
+        return;
+    }
+
+    for (int col = 0; col < image.cols; col += 2)
+    {
+        mark_pixel(image, row, col, color);
+    }
+}
+
 cv::Mat build_binary_road_view()
 {
     cv::Mat road_view(LCDH, LCDW, CV_8UC3);
@@ -153,8 +216,9 @@ cv::Mat build_binary_road_view()
     const cv::Vec3b center_color(0, 255, 0);
     const cv::Vec3b target_color(0, 255, 255);
     const cv::Vec3b middle_color(255, 255, 0);
+    const cv::Vec3b off_line_color(255, 0, 255);
 
-    for (int row = 0; row < LCDH; row++)
+    for (int row = ImageStatus.OFFLine; row < LCDH; row++)
     {
         mark_column(road_view, row, ImageDeal[row].LeftBorder, left_color);
         mark_column(road_view, row, ImageDeal[row].RightBorder, right_color);
@@ -162,7 +226,11 @@ cv::Mat build_binary_road_view()
         mark_pixel(road_view, row, ImageStatus.MiddleLine, middle_color);
     }
 
-    for (int row = ImageStatus.TowPoint - 2; row <= ImageStatus.TowPoint + 2; row++)
+    const int tow_point = ImageStatus.TowPoint_True > 0 ? ImageStatus.TowPoint_True : ImageStatus.TowPoint;
+    mark_row(road_view, ImageStatus.OFFLine, off_line_color);
+    mark_row(road_view, tow_point, target_color);
+
+    for (int row = tow_point - 2; row <= tow_point + 2; row++)
     {
         mark_column(road_view, row, ImageStatus.Det_True, target_color);
     }

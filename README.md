@@ -128,6 +128,39 @@ bash ./build.sh <开发板IP> -r
 
 默认建议先只上传，不自动运行，方便上车前确认状态。
 
+## 二值化赛道图传
+
+当前车端会从 `Pixle` 二值图生成赛道图，通过 UDP 发送到上位机：
+
+```text
+图像端口：8080
+状态端口：8083
+图像格式：LQIM + JPEG
+图像模式：binary_track
+```
+
+运行上位机：
+
+```bash
+cd "Loongson_2K300_301_LIB"
+python pid_gui.py
+```
+
+图像颜色约定：
+
+- 黑白底图：二值化后的赛道图。
+- 蓝线：左边界。
+- 红线：右边界。
+- 绿点：中心线。
+- 黄线/黄点：前瞻行和 `Det_True` 目标点。
+- 紫线：`OFFLine`。
+
+车端图传目标 IP 在 `Loongson_2K300_301_LIB/libraries/app/car_runtime.cpp` 中配置，默认是：
+
+```cpp
+#define LQ_TELEMETRY_HOST_IP "192.168.31.33"
+```
+
 ## 当前关键改动
 
 ### 1. 环岛/十字路径接管
