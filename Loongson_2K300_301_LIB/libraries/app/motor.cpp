@@ -16,7 +16,7 @@ constexpr uint32_t kMotorPwmFreqHz = 10000;
 constexpr int kDefaultInitDuty = 1000;
 // 正向（小车前进方向）时，方向 GPIO 应输出的电平
 constexpr bool kLeftForwardDir  = true;   
-constexpr bool kRightForwardDir = false;  
+constexpr bool kRightForwardDir = true;  
 
 std::unique_ptr<ls_atim_pwm> left_motor_pwm;
 std::unique_ptr<ls_atim_pwm> right_motor_pwm;

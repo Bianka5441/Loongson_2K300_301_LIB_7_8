@@ -138,6 +138,8 @@ void Data_Settings(void)
     ImageStatus.WhiteLine = 0;
     ImageStatus.Left_Line = 0;
     ImageStatus.Right_Line = 0;
+    ImageStatus.Cross_Lenth = 0;
+    ImageStatus.Cross_ture_lenth = 0;
 
     ImageScanInterval = 2;
     ImageScanInterval_Cross = 2;
@@ -1814,6 +1816,175 @@ void Element_Handle_Right_Rings()
 }
 
 // 元素测试函数
+static int ClampImageCol(int value)
+{
+    if (value < 0)
+        return 0;
+    if (value >= LCDW)
+        return LCDW - 1;
+    return value;
+}
+
+static int AbsInt(int value)
+{
+    return value < 0 ? -value : value;
+}
+
+static bool IsBothBorderReliable(int row)
+{
+    return row >= 0 && row < LCDH
+        && ImageDeal[row].IsLeftFind == 'T'
+        && ImageDeal[row].IsRightFind == 'T'
+        && ImageDeal[row].RightBorder > ImageDeal[row].LeftBorder + 8
+        && ImageDeal[row].LeftBorder > 0
+        && ImageDeal[row].RightBorder < LCDW - 1;
+}
+
+static void SetCrossRowPath(int row, int center)
+{
+    int half_width = Half_Road_Wide[row];
+    center = ClampImageCol(center);
+
+    int left = center - half_width;
+    int right = center + half_width;
+    if (left < 0)
+    {
+        right -= left;
+        left = 0;
+    }
+    if (right >= LCDW)
+    {
+        left -= right - (LCDW - 1);
+        right = LCDW - 1;
+    }
+
+    ImageDeal[row].LeftBorder = ClampImageCol(left);
+    ImageDeal[row].RightBorder = ClampImageCol(right);
+    ImageDeal[row].Center = (ImageDeal[row].LeftBorder + ImageDeal[row].RightBorder) / 2;
+    ImageDeal[row].Wide = ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
+    ImageDeal[row].IsLeftFind = 'T';
+    ImageDeal[row].IsRightFind = 'T';
+}
+
+static void Element_Judgment_Cross(void)
+{
+    if (ImageFlag.image_element_rings != 0 || ImageFlag.image_element_rings_flag != 0
+        || ImageStatus.Road_type == LeftCirque || ImageStatus.Road_type == RightCirque)
+    {
+        if (ImageStatus.Road_type == Cross || ImageStatus.Road_type == Cross_ture)
+            ImageStatus.Road_type = Normol;
+        ImageStatus.Cross_Lenth = 0;
+        ImageStatus.Cross_ture_lenth = 0;
+        return;
+    }
+
+    int lower_stable_rows = 0;
+    for (int row = 58; row >= 48; row--)
+    {
+        if (IsBothBorderReliable(row))
+            lower_stable_rows++;
+    }
+
+    int open_rows = 0;
+    int wide_rows = 0;
+    int reliable_mid_rows = 0;
+    for (int row = 47; row >= 20; row--)
+    {
+        const bool left_open = ImageDeal[row].IsLeftFind == 'W' || ImageDeal[row].LeftBorder <= 1;
+        const bool right_open = ImageDeal[row].IsRightFind == 'W' || ImageDeal[row].RightBorder >= LCDW - 2;
+        const int width = ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
+
+        if (left_open && right_open)
+            open_rows++;
+        if (width > (Half_Road_Wide[row] * 2 + 14))
+            wide_rows++;
+        if (IsBothBorderReliable(row))
+            reliable_mid_rows++;
+    }
+
+    const bool cross_like = lower_stable_rows >= 6
+        && (open_rows >= 8
+            || ImageStatus.WhiteLine >= 8
+            || (ImageStatus.WhiteLine_L >= 10 && ImageStatus.WhiteLine_R >= 10)
+            || (wide_rows >= 10 && reliable_mid_rows < 12));
+
+    if (cross_like)
+    {
+        if (ImageStatus.Cross_ture_lenth < 60)
+            ImageStatus.Cross_ture_lenth++;
+        ImageStatus.Cross_Lenth = 0;
+        ImageStatus.Road_type = ImageStatus.Cross_ture_lenth >= 2 ? Cross_ture : Cross;
+        return;
+    }
+
+    if (ImageStatus.Road_type == Cross || ImageStatus.Road_type == Cross_ture)
+    {
+        if (ImageStatus.Cross_Lenth < 4)
+        {
+            ImageStatus.Cross_Lenth++;
+            return;
+        }
+        ImageStatus.Road_type = Normol;
+    }
+    ImageStatus.Cross_Lenth = 0;
+    ImageStatus.Cross_ture_lenth = 0;
+}
+
+static void Element_Handle_Cross(void)
+{
+    int top_row = ImageStatus.OFFLine;
+    if (top_row > 18)
+        top_row = 18;
+    if (top_row < 5)
+        top_row = 5;
+
+    int last_center = ImageStatus.MiddleLine;
+    int last_step = 0;
+    bool has_center = false;
+
+    for (int row = 58; row >= top_row; row--)
+    {
+        const bool both_ok = IsBothBorderReliable(row);
+        const bool left_ok = ImageDeal[row].IsLeftFind == 'T' && ImageDeal[row].LeftBorder > 0;
+        const bool right_ok = ImageDeal[row].IsRightFind == 'T' && ImageDeal[row].RightBorder < LCDW - 1;
+        const int expect_width = Half_Road_Wide[row] * 2;
+        int center = last_center;
+
+        if (both_ok && ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder <= expect_width + 14)
+        {
+            center = (ImageDeal[row].LeftBorder + ImageDeal[row].RightBorder) / 2;
+        }
+        else if (left_ok && !right_ok)
+        {
+            center = ImageDeal[row].LeftBorder + Half_Road_Wide[row];
+        }
+        else if (right_ok && !left_ok)
+        {
+            center = ImageDeal[row].RightBorder - Half_Road_Wide[row];
+        }
+        else if (has_center)
+        {
+            center = last_center + last_step;
+        }
+
+        if (has_center)
+        {
+            const int step = center - last_center;
+            if (AbsInt(step) <= 4)
+                last_step = step;
+            else
+                center = last_center + last_step;
+        }
+
+        SetCrossRowPath(row, center);
+        last_center = ImageDeal[row].Center;
+        has_center = true;
+    }
+
+    if (ImageStatus.OFFLine > top_row)
+        ImageStatus.OFFLine = top_row;
+}
+
 void Element_Test(void) {
  
 
@@ -1824,16 +1995,19 @@ void Element_Test(void) {
   { 
           Element_Judgment_Left_Rings();           // 左环岛判断
           Element_Judgment_Right_Rings();          // 右环岛判断
+          Element_Judgment_Cross();                // 十字判断
 
   }
 }
 
 // 元素处理函数
 void Element_Handle() {
-  if (ImageFlag.image_element_rings == 1)
+  if (ImageStatus.Road_type == LeftCirque && ImageFlag.image_element_rings == 1)
       Element_Handle_Left_Rings();
-  else if(ImageFlag.image_element_rings == 2)
+  else if(ImageStatus.Road_type == RightCirque && ImageFlag.image_element_rings == 2)
       Element_Handle_Right_Rings();
+  else if(ImageStatus.Road_type == Cross || ImageStatus.Road_type == Cross_ture)
+      Element_Handle_Cross();
 
 }
 
@@ -2025,12 +2199,9 @@ void ImageProcess(void)
 
   /***元素识别*****/
   Element_Test();                   // 5us
-  /***元素识别*****/
   DrawExtensionLine();
+  Element_Handle();  // 3us
   RouteFilter();        // 路径滤波平滑 2us
-  /***元素处理*****/
-  //  Element_Handle();  // 3us
-  /***元素处理*****/
   // Stop_Test();           // 过桥保护   出环后  确保已经过环
   GetDet();               // 获取动态前瞻 并计算图像偏差 3us
      // Menu_key_set();
