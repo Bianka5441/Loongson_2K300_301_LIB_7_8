@@ -127,7 +127,7 @@ void Data_Settings(void)
     ImageStatus.CirqueOff = 'F';
     ImageStatus.Barn_Flag = 0;
     ImageStatus.straight_acc = 0;
-    ImageStatus.TowPoint = 21;
+    ImageStatus.TowPoint = 18;
     ImageStatus.Threshold_static = 70;
     ImageStatus.Threshold_detach = 180;
     ImageStatus.variance_acc = 25;
@@ -146,7 +146,7 @@ void Data_Settings(void)
 
     SystemData.clrcle_num = 0;
     SystemData.Stop = 1;
-    SystemData.straighet_towpoint = 30;
+    SystemData.straighet_towpoint = 24;
 
     border_point = 0;
     top_point = 0;
@@ -2114,16 +2114,16 @@ static float ApplyNormalRoadDetCorrection(float det_temp)
   const float road_trend = det_temp - near_center;
 
   float corrected_det = det_temp;
-  if (my_abs(road_trend) > 8.0f && my_abs(far_error) > 5.0f)
+  if (my_abs(road_trend) > 10.0f && my_abs(far_error) > 5.0f)
   {
-    float lead = road_trend * 0.28f;
-    if (lead > 7.0f)
+    float lead = road_trend * 0.18f;
+    if (lead > 4.0f)
     {
-      lead = 7.0f;
+      lead = 4.0f;
     }
-    if (lead < -7.0f)
+    if (lead < -4.0f)
     {
-      lead = -7.0f;
+      lead = -4.0f;
     }
     corrected_det += lead;
   }
