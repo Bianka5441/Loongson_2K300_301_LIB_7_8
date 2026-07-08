@@ -1,0 +1,24 @@
+{
+  "board_ip": "192.168.31.187",
+  "control_port": 9090,
+  "image_port": 8080,
+  "status_port": 8083,
+  "params": {
+    "base_target_speed": 0.0,
+    "min_target_speed": 0.0,
+    "turn_speed_max": 0.0,
+    "target_speed_max": 0.0,
+    "lookahead_row": 0.0,
+    "turn_kp": 0.0,
+    "turn_kd": 0.0,
+    "speed_kp_left": 0.0,
+    "speed_ki_left": 0.0,
+    "speed_kd_left": 0.0,
+    "speed_kp_right": 0.0,
+    "speed_ki_right": 0.0,
+    "speed_kd_right": 0.0,
+    "pwm_min": -6000.0,
+    "pwm_max": 0.0,
+    "min_start_pwm": 0.0
+  }
+}
