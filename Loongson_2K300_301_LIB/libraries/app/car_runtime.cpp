@@ -32,7 +32,7 @@ constexpr const char* kTelemetryImageMode = "binary_track";
 constexpr uint16_t kTelemetryImagePort = 8080;
 constexpr uint16_t kTelemetryStatusPort = 8083;
 constexpr int kTelemetryJpegQuality = 85;
-constexpr uint32_t kTelemetryFrameDivisor = 3;
+constexpr uint32_t kTelemetryFrameDivisor = 2;
 
 int telemetry_socket_fd = -1;
 sockaddr_in telemetry_image_addr{};

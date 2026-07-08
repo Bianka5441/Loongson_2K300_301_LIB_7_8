@@ -2077,7 +2077,7 @@ void DrawLine()
   }
 }
 
-static float ApplyNearCenterGuard(float det_temp)
+static float ApplyNormalRoadDetCorrection(float det_temp)
 {
   if (ImageStatus.Road_type != Normol && ImageStatus.Road_type != Straight)
   {
@@ -2111,18 +2111,37 @@ static float ApplyNearCenterGuard(float det_temp)
   const float near_center = near_sum / near_count;
   const float far_error = det_temp - ImageStatus.MiddleLine;
   const float near_error = near_center - ImageStatus.MiddleLine;
+  const float road_trend = det_temp - near_center;
 
-  if (far_error * near_error < 0.0f && my_abs(near_error) > 4.0f)
+  float corrected_det = det_temp;
+  if (my_abs(road_trend) > 8.0f && my_abs(far_error) > 5.0f)
   {
-    return det_temp * 0.60f + near_center * 0.40f;
+    float lead = road_trend * 0.28f;
+    if (lead > 7.0f)
+    {
+      lead = 7.0f;
+    }
+    if (lead < -7.0f)
+    {
+      lead = -7.0f;
+    }
+    corrected_det += lead;
   }
 
-  if (my_abs(far_error) < 5.0f && my_abs(near_error) > 6.0f)
+  const float corrected_error = corrected_det - ImageStatus.MiddleLine;
+  if (corrected_error * near_error < 0.0f
+      && my_abs(near_error) > 4.0f
+      && my_abs(far_error) <= my_abs(near_error) * 1.2f)
   {
-    return det_temp * 0.55f + near_center * 0.45f;
+    return corrected_det * 0.55f + near_center * 0.45f;
   }
 
-  return det_temp;
+  if (my_abs(corrected_error) < 5.0f && my_abs(near_error) > 6.0f)
+  {
+    return corrected_det * 0.55f + near_center * 0.45f;
+  }
+
+  return corrected_det;
 }
 
 /*****************偏差按权重系数加权平均**********************/
@@ -2191,7 +2210,7 @@ else
   } else
     DetTemp =ImageStatus.Det_True;                                                     // 如果出现OFFLine>50，那么保持上一次的偏差值
 
-  DetTemp = ApplyNearCenterGuard(DetTemp);
+  DetTemp = ApplyNormalRoadDetCorrection(DetTemp);
   ImageStatus.Det_True = DetTemp;                                                      // 这时的计算结果作为平均图像偏差
 
   ImageStatus.TowPoint_True = TowPoint;                                                // 这时的前瞻
