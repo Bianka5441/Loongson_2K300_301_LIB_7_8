@@ -294,17 +294,45 @@ class PidGui:
 
         with self.dataset_lock:
             frame_path = self.frame_paths.get(seq)
+        if frame_path is None and seq >= 0:
+            time.sleep(0.03)
+            with self.dataset_lock:
+                frame_path = self.frame_paths.get(seq)
+
+        with self.dataset_lock:
             self.sample_index += 1
             row = {
                 "sample_index": self.sample_index,
                 "timestamp": ts,
                 "status_image_seq": seq_text,
                 "frame_path": str(frame_path.relative_to(self.dataset_dir)) if frame_path else "",
+                "terminal_line": self._terminal_line(status),
+                "target_diff": self._status_delta(status, "target_l", "target_r"),
             }
             for key, value in status.items():
                 if key != "_raw":
                     row[key] = value
             self._write_csv_row(row)
+
+    def _terminal_line(self, status):
+        if status.get("terminal_line"):
+            return status["terminal_line"]
+        try:
+            return "err={err:4d}  pidL={pid_l:6d}  pidR={pid_r:6d}  spdL={spd_l:4d}  spdR={spd_r:4d}".format(
+                err=int(status.get("err", 0)),
+                pid_l=int(status.get("pid_l", 0)),
+                pid_r=int(status.get("pid_r", 0)),
+                spd_l=int(status.get("spd_l", 0)),
+                spd_r=int(status.get("spd_r", 0)),
+            )
+        except ValueError:
+            return ""
+
+    def _status_delta(self, status, left_key, right_key):
+        try:
+            return int(status.get(left_key, 0)) - int(status.get(right_key, 0))
+        except ValueError:
+            return ""
 
     def _write_csv_row(self, row):
         keys = list(row.keys())

@@ -123,7 +123,7 @@ const char* road_type_name(RoadType_e road_type)
 
 void send_status_packet(uint32_t image_seq)
 {
-    char status[512];
+    char status[768];
     const int center_error = ImageStatus.Det_True - ImageStatus.MiddleLine;
     const int len = std::snprintf(status, sizeof(status),
                                   "status_image_seq=%u\n"
@@ -141,7 +141,8 @@ void send_status_packet(uint32_t image_seq)
                                   "spd_r=%d\n"
                                   "target_l=%d\n"
                                   "target_r=%d\n"
-                                  "pwm_max=%d\n",
+                                  "pwm_max=%d\n"
+                                  "terminal_line=err=%4d  pidL=%6d  pidR=%6d  spdL=%4d  spdR=%4d\n",
                                   image_seq,
                                   kTelemetryImageMode,
                                   road_type_name(ImageStatus.Road_type),
@@ -157,7 +158,12 @@ void send_status_packet(uint32_t image_seq)
                                   encoder_Right,
                                   Diff_SpeedL_expect,
                                   Diff_SpeedR_expect,
-                                  PWM_Max);
+                                  PWM_Max,
+                                  center_error,
+                                  Speed_PID_OUT_l,
+                                  Speed_PID_OUT_r,
+                                  encoder_Left,
+                                  encoder_Right);
     if (len > 0)
     {
         sendto(telemetry_socket_fd,

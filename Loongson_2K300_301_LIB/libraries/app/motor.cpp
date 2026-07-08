@@ -14,6 +14,7 @@ constexpr gpio_pin_t kLeftEncoderDirPin  = PIN_72;
 constexpr gpio_pin_t kRightEncoderDirPin = PIN_73;
 constexpr uint32_t kMotorPwmFreqHz = 10000;
 constexpr int kDefaultInitDuty = 1000;
+constexpr int kBaseTargetSpeed = 160;
 // 正向（小车前进方向）时，方向 GPIO 应输出的电平
 constexpr bool kLeftForwardDir  = true;   
 constexpr bool kRightForwardDir = true;  
@@ -118,8 +119,8 @@ void Encoder_Test1(void)
 
 void Motor_Argument(void)
 {
-    Speed_Goal_l = 180;
-    Speed_Goal_r = 180;
+    Speed_Goal_l = kBaseTargetSpeed;
+    Speed_Goal_r = kBaseTargetSpeed;
 
     Speed_P_l = 18;
     Speed_I_l = 1.65f;
@@ -206,18 +207,18 @@ void Motor_Control(void)
     }
     else
     {
-        Speed_Goal_l = 180;
-        Speed_Goal_r = 180;
+        Speed_Goal_l = kBaseTargetSpeed;
+        Speed_Goal_r = kBaseTargetSpeed;
 
         if (top_point < 15)
         {
-            Speed_Goal_l = 180;
-            Speed_Goal_r = 180;
+            Speed_Goal_l = kBaseTargetSpeed;
+            Speed_Goal_r = kBaseTargetSpeed;
         }
         else
         {
-            Speed_Goal_l = 180;
-            Speed_Goal_r = 180;
+            Speed_Goal_l = kBaseTargetSpeed;
+            Speed_Goal_r = kBaseTargetSpeed;
         }
     }
 
@@ -300,13 +301,20 @@ void Motor_Diff_Pid1(void)
         turn_error = 0;
     }
 
+    const float abs_turn_error = my_abs(turn_error);
     float current_Kp = Diff_Kp;
-    if (turn_error > -10.0f && turn_error < 10.0f)
+    float current_Kd = Diff_Kd;
+    if (abs_turn_error > 0.0f && abs_turn_error < 4.0f)
     {
-        current_Kp = Diff_Kp * 0.6f;
+        current_Kp = Diff_Kp * 0.9f;
+    }
+    else if (abs_turn_error < 18.0f)
+    {
+        current_Kp = Diff_Kp * 1.25f;
+        current_Kd = Diff_Kd * 1.15f;
     }
 
-    float turn_output = current_Kp * turn_error + Diff_Kd * (turn_error - last_turn_error);
+    float turn_output = current_Kp * turn_error + current_Kd * (turn_error - last_turn_error);
     last_turn_error = turn_error;
 
     if (turn_output > 500.0f)

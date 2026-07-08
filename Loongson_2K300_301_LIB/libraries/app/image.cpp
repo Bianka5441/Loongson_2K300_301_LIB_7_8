@@ -2077,6 +2077,54 @@ void DrawLine()
   }
 }
 
+static float ApplyNearCenterGuard(float det_temp)
+{
+  if (ImageStatus.Road_type != Normol && ImageStatus.Road_type != Straight)
+  {
+    return det_temp;
+  }
+
+  float near_sum = 0.0f;
+  int near_count = 0;
+  for (int row = 44; row <= 56; row++)
+  {
+    if (row <= ImageStatus.OFFLine || row >= LCDH)
+    {
+      continue;
+    }
+
+    const int width = ImageDeal[row].RightBorder - ImageDeal[row].LeftBorder;
+    if (width < 12 || width > 72 || ImageDeal[row].Center <= 1 || ImageDeal[row].Center >= 78)
+    {
+      continue;
+    }
+
+    near_sum += ImageDeal[row].Center;
+    near_count++;
+  }
+
+  if (near_count < 4)
+  {
+    return det_temp;
+  }
+
+  const float near_center = near_sum / near_count;
+  const float far_error = det_temp - ImageStatus.MiddleLine;
+  const float near_error = near_center - ImageStatus.MiddleLine;
+
+  if (far_error * near_error < 0.0f && my_abs(near_error) > 4.0f)
+  {
+    return det_temp * 0.60f + near_center * 0.40f;
+  }
+
+  if (my_abs(far_error) < 5.0f && my_abs(near_error) > 6.0f)
+  {
+    return det_temp * 0.55f + near_center * 0.45f;
+  }
+
+  return det_temp;
+}
+
 /*****************偏差按权重系数加权平均**********************/
 void GetDet() 
 {
@@ -2143,6 +2191,7 @@ else
   } else
     DetTemp =ImageStatus.Det_True;                                                     // 如果出现OFFLine>50，那么保持上一次的偏差值
 
+  DetTemp = ApplyNearCenterGuard(DetTemp);
   ImageStatus.Det_True = DetTemp;                                                      // 这时的计算结果作为平均图像偏差
 
   ImageStatus.TowPoint_True = TowPoint;                                                // 这时的前瞻

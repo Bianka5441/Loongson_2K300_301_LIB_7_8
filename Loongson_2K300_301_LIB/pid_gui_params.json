@@ -4,7 +4,7 @@
   "image_port": 8080,
   "status_port": 8083,
   "params": {
-    "base_target_speed": 180.0,
+    "base_target_speed": 160.0,
     "min_target_speed": 80.0,
     "turn_speed_max": 500.0,
     "target_speed_max": 1500.0,
