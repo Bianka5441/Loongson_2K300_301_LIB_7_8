@@ -1,71 +1,176 @@
-![longqiu](./MD_Image/longqiu.png)
+# Loongson 2K300/301 Smart Car 7.8 Baseline
 
-# 龙邱科技 龙芯2k301核心板软件开源库
+这是基于龙芯 2K300/301 智能车工程整理出的 7.8 基线版本。当前版本重点不是堆叠多套算法，而是保留 7.8 主扫线链路，在视觉路径层接管环岛和十字，最后仍然输出统一的 `ImageStatus.Det_True` 给电机差速控制。
 
-### 1- 简介
-`Loongson_2k300_301_Library-V2.1.0`库，针对龙邱科技 龙芯2k301核心板常用外设资源和龙邱产品模块移植驱动例程，以方便参加智能车竞赛和使用我们产品的人入门学习使用，2k301和2k300基本上可以通用，仅内存形式不同、龙邱核心板与久久派引出引脚个别有所不同，故相关视频教程依旧可以参考龙邱2K300的。
+## 当前状态
 
-工程默认使用开发环境为`Linux`系统下 ，可以使用`Ubuntu`或`WSL`，软件可使用`VScode`，请自行修改工程路径相关配置。
+- 主线视觉：二值化、扫线、边界处理、中心线生成、滤波、动态前瞻偏差。
+- 特殊元素：环岛和十字只作为视觉路径接管，不直接改 PID、基速或差速参数。
+- 电机控制：继续消费统一后的 `ImageStatus.Det_True - ImageStatus.MiddleLine`。
+- 硬件修正：右轮前进方向已按当前车况反转。
+- 最新基线提交：`d4136a2 整合环岛十字路径接管并修正右轮方向`。
 
-### 2- 开发环境
+## 目录结构
 
-- 硬件平台：[龙邱龙芯2k301核心板](https://item.taobao.com/item.htm?id=1010690276497)
+```text
+.
+├── Loongson_2K300_301_LIB/
+│   ├── libraries/app/
+│   │   ├── image.cpp      # 视觉主流程、环岛/十字识别与路径接管
+│   │   ├── image.hpp      # 图像状态、道路类型、全局接口
+│   │   └── motor.cpp      # 电机差速、速度 PID、方向极性
+│   ├── main/
+│   │   ├── build.sh       # 编译、上传、可选运行脚本
+│   │   └── main.cpp
+│   ├── example/
+│   ├── libraries/
+│   └── tools/
+├── Doc/
+├── MD_Image/
+└── README.md
+```
 
-<img src="./MD_Image/image-%E9%BE%99%E8%8A%AF2k0301.png" alt="e623eb8145ee0237196290a5153ee2e1" style="zoom: 15%;" />
+## 视觉算法思路
 
-如需了解龙芯久久派拓展版相关信息，可点击链接：[龙芯久久派拓展板](https://item.taobao.com/item.htm?id=1010690276497)了解详情。
+当前推荐方案是：
 
-<img src="./MD_Image/image-2K301%E6%8B%93%E5%B1%95%E6%9D%BF.png" alt="4d1821901fe89cf6e3704ac20d2f5be4" style="zoom:35%;" />
+```text
+二值化
+-> 边界扫线
+-> 元素识别
+-> 环岛/十字路径接管
+-> RouteFilter
+-> GetDet
+-> 电机差速控制
+```
 
-- 开发及编辑环境 `Ubuntu`+`VScode 1.93` 以上
+正常道路仍然走 7.8 原来的扫线主链路。环岛和十字不新增独立中心线输出，也不形成另一套视觉算法。
 
-### 3- 使用说明
+### 环岛接管
 
-1. 安装`Ubuntu`或`WSL`并安装`VScode`环境
-2. 下载或克隆库，本链接或购买产品的附赠资料中
-3. 打开软件导入工程，参考其他地方的教程手册以及B站相关的视频。
-4. 项目介绍：
-   - <font color="red">`LQ_ls2k301_LIB_V2.1.0`</font>是更新后的不带有测试例程的项目工程
-   - <font color="red">`根据龙邱2k301核心板的引脚资源分配.xlsx`</font>是根据拓展板写的引脚资源分配表格
-   - 其他详细教程内容可在B站查看相关教程：[龙邱科技的个人空间-龙邱科技个人主页-哔哩哔哩视频](https://space.bilibili.com/95313236)
+环岛识别依赖现有的 `LeftCirque` / `RightCirque` 状态和环岛阶段机。
 
+接管函数：
 
+- `Element_Handle_Left_Rings()`
+- `Element_Handle_Right_Rings()`
 
+它们负责补边界、生成适合绕环的中心线，并写回同一份 `ImageDeal[]`。后续 `RouteFilter()` 和 `GetDet()` 不需要知道这是普通道路还是环岛，只处理已经统一过的路径。
 
-### 4- 更新日志
+### 十字接管
 
-   1. 更新内容 详见工程目录下的**历史版本更新记录.txt**文件
+十字识别使用 `Cross` / `Cross_ture` 状态，触发条件比较保守：底部需要有稳定边界，前方出现连续无边、大白区或有效边界明显减少时才进入十字状态。
 
+接管函数：
 
-​         
+- `Element_Judgment_Cross()`
+- `Element_Handle_Cross()`
 
-###  5-其他核心板类开源库
+十字接管会在大白区内补连续中心线，避免 `Det_True` 因丢边而跳变。
 
-   龙邱-核心板类开源库百度网盘链接：[https://pan.baidu.com/s/1exDJTBU4HdRVE5ne6-5LCA](https://gitee.com/link?target=https%3A%2F%2Fpan.baidu.com%2Fs%2F1exDJTBU4HdRVE5ne6-5LCA) 提取码：7sa3
+## 电机控制思路
 
-   其他开源库，陆续整理中。。。后续也会同步gitee
+电机侧不区分正常道路、环岛、十字三套控制，只看统一后的视觉偏差：
 
-### 6-关于资讯
+```cpp
+turn_error = ImageStatus.Det_True - ImageStatus.MiddleLine;
+```
 
-   其他关于龙邱科技，智能车相关资讯，敬请关注龙邱官方微信公众号：
+随后由 `Motor_Diff_Pid1()` 计算差速：
 
-   ![image-20250218135059980](./MD_Image/%E5%BE%AE%E4%BF%A1%E5%85%AC%E4%BC%97%E5%8F%B7%E4%BA%8C%E7%BB%B4%E7%A0%81.png)
+```cpp
+Diff_SpeedL_expect = current_base_speed + turn_output;
+Diff_SpeedR_expect = current_base_speed - turn_output;
+```
 
-   更多智能车和公司动态信息、文章会在此发布！
+再由左右轮速度 PID 输出 PWM。这样特殊元素只负责把路画对，电机只负责追这条路，调试时不会出现多套 PID 互相影响。
 
+## 编译
 
+工程推荐在 WSL 或 Linux 环境中编译。进入 `main` 目录后执行：
 
+```bash
+cd "Loongson_2K300_301_LIB/main"
+bash ./build.sh
+```
 
-----
+编译成功后，可执行文件位于：
 
+```text
+Loongson_2K300_301_LIB/main/build/main
+```
 
+## 上传到开发板
 
+只编译并上传，不自动运行：
 
-#### 特技
+```bash
+bash ./build.sh <开发板IP>
+```
 
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+例如：
+
+```bash
+bash ./build.sh 192.168.31.187
+```
+
+脚本会把程序上传到：
+
+```text
+/home/root/main
+```
+
+如果需要上传后直接运行，再显式加 `-r`：
+
+```bash
+bash ./build.sh <开发板IP> -r
+```
+
+默认建议先只上传，不自动运行，方便上车前确认状态。
+
+## 当前关键改动
+
+### 1. 环岛/十字路径接管
+
+`ImageProcess()` 的视觉链路已调整为：
+
+```cpp
+Element_Test();
+DrawExtensionLine();
+Element_Handle();
+RouteFilter();
+GetDet();
+```
+
+`Element_Handle()` 当前只开放环岛和十字接管，避免其它复杂元素继续膨胀。
+
+### 2. 单一偏差输出
+
+不新增“正常 Det / 环岛 Det / 十字 Det”三套结果。所有路径接管最终都写回 `ImageDeal[]`，再由 `GetDet()` 输出唯一的 `ImageStatus.Det_True`。
+
+### 3. 右轮方向修正
+
+当前车况下右轮方向已反转：
+
+```cpp
+constexpr bool kRightForwardDir = true;
+```
+
+位置：
+
+```text
+Loongson_2K300_301_LIB/libraries/app/motor.cpp
+```
+
+## 调试建议
+
+- 路径问题先看 `ImageDeal[].Center` 和 `ImageStatus.Det_True`，不要先改电机 PID。
+- 环岛和十字如果跑偏，优先调整视觉接管的补线条件和中心线连续性。
+- 电机侧保持一套差速逻辑，避免正常、环岛、十字各自维护一套速度策略。
+- 上传测试时默认不加 `-r`，确认板端环境后再运行。
+
+## 仓库地址
+
+```text
+https://github.com/Bianka5441/Loongson_2K300_301_LIB_7_8
+```
